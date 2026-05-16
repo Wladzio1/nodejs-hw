@@ -52,9 +52,10 @@ export const deleteNote = async (req, res, next) => {
 export const updateNote = async (req, res, next) => {
   try {
     const { noteId } = req.params;
+
     const updatedNote = await Note.findByIdAndUpdate(noteId, req.body, {
-      new: true, // Zwraca zaktualizowany dokument zamiast starego
-      runValidators: true, // Uruchamia walidację modelu podczas aktualizacji
+      returnDocument: 'after',
+      runValidators: true,
     });
 
     if (!updatedNote) {
