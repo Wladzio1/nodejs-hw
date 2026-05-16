@@ -1,64 +1,38 @@
 import express from 'express';
-import pino from 'pino-http';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { connectMongoDB } from './db/connectMongoDB.js';
+import { logger } from './middleware/logger.js';
+import { notFoundHandler } from './middleware/notFoundHandler.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import notesRouter from './routes/notesRoutes.js';
 
 dotenv.config();
 
-const setupServer = () => {
+const setupServer = async () => {
   const app = express();
 
-  // Middleware
+  // 3. Podłączenie standardowych middleware (w tym Twój nowy logger z pino)
+  app.use(logger);
   app.use(express.json());
   app.use(cors());
-  app.use(
-    pino({
-      transport: {
-        target: 'pino-pretty',
-      },
-    }),
-  );
 
-  // GET /notes
-  app.get('/notes', (req, res) => {
-    res.status(200).json({
-      message: 'Retrieved all notes',
-    });
-  });
+  // 4. Rejestracja tras (przeniesione do zewnętrznego routera, usunięto /test-error)
+  app.use(notesRouter);
 
-  // GET /notes/:noteId
-  app.get('/notes/:noteId', (req, res) => {
-    const { noteId } = req.params;
-    res.status(200).json({
-      message: `Retrieved note with ID: ${noteId}`,
-    });
-  });
+  // 6. Middleware dla nieistniejących tras (404) - teraz z osobnego pliku
+  app.use(notFoundHandler);
 
-  // GET /test-error (Testowanie błędów 500)
-  app.get('/test-error', (req, res) => {
-    throw new Error('Simulated server error');
-  });
+  // 7. Globalny error handler (500) - teraz z osobnego pliku
+  app.use(errorHandler);
 
-  // --- OBSŁUGA BŁĘDÓW ---
-
-  // Middleware dla 404 (Trasa nie znaleziona)
-  app.use((req, res, next) => {
-    res.status(404).json({
-      message: 'Route not found',
-    });
-  });
-
-  // Middleware dla 500 (Błędy serwera)
-  app.use((err, req, res, next) => {
-    res.status(500).json({
-      message: err.message || 'Internal Server Error',
-    });
-  });
+  // 2. Połączenie z MongoDB przed uruchomieniem serwera
+  await connectMongoDB();
 
   // Uruchomienie serwera
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`🚀 Server is running on port ${PORT}`);
   });
 };
 
